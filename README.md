@@ -1,0 +1,1 @@
+This repository will hold exercises for the Clustering methodology.
