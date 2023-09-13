@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import env
 
+
 def acquire_zillow():
     '''
     acquire_zillow will use a local env.py
@@ -16,25 +17,44 @@ def acquire_zillow():
     if os.path.exists('zillow_data.csv'):
         df = pd.read_csv('zillow_data.csv')
     else:
-        query = '''SELECT *
-                FROM properties_2017
-                LEFT JOIN predictions_2017 ON properties_2017.id = predictions_2017.id
-                LEFT JOIN architecturalstyletype ON properties_2017.architecturalstyletypeid = architecturalstyletype.architecturalstyletypeid
-                LEFT JOIN buildingclasstype ON properties_2017.buildingclasstypeid = buildingclasstype.buildingclasstypeid
-                LEFT JOIN heatingorsystemtype ON properties_2017.heatingorsystemtypeid = heatingorsystemtype.heatingorsystemtypeid
-                LEFT JOIN storytype ON properties_2017.storytypeid = storytype.storytypeid
-                LEFT JOIN propertylandusetype ON properties_2017.propertylandusetypeid = propertylandusetype.propertylandusetypeid
-                LEFT JOIN typeconstructiontype ON properties_2017.typeconstructiontypeid = typeconstructiontype.typeconstructiontypeid
-                LEFT JOIN airconditioningtype ON properties_2017.airconditioningtypeid = airconditioningtype.airconditioningtypeid
-                LEFT JOIN unique_properties ON properties_2017.parcelid = unique_properties.parcelid
-                WHERE properties_2017.propertylandusetypeid = 261
-                AND transactiondate BETWEEN '2017-01-01' AND '2017-12-31'
-                AND latitude IS NOT NULL
-                AND longitude IS NOT NULL'''
+        query = '''
+	SELECT 
+        prop.*,
+	    predictions_2017.logerror,
+	    predictions_2017.transactiondate,
+	    air.airconditioningdesc,
+	    arch.architecturalstyledesc,
+	    build.buildingclassdesc,
+	    heat.heatingorsystemdesc,
+	    land.propertylandusedesc,
+	    story.storydesc,
+	    type.typeconstructiondesc
+	FROM properties_2017 prop
+	JOIN (
+		SELECT parcelid, MAX(transactiondate) AS max_transactiondate
+		FROM predictions_2017
+		GROUP BY parcelid
+		) pred USING(parcelid)
+	JOIN predictions_2017 ON pred.parcelid = predictions_2017.parcelid
+						AND pred.max_transactiondate = predictions_2017.transactiondate
+	LEFT JOIN airconditioningtype air USING(airconditioningtypeid)
+	LEFT JOIN architecturalstyletype arch USING(architecturalstyletypeid)
+	LEFT JOIN buildingclasstype build USING(buildingclasstypeid)
+	LEFT JOIN heatingorsystemtype heat USING(heatingorsystemtypeid)
+	LEFT JOIN propertylandusetype land USING(propertylandusetypeid)
+	LEFT JOIN storytype story USING(storytypeid)
+	LEFT JOIN typeconstructiontype type USING(typeconstructiontypeid)
+	WHERE propertylandusedesc = "Single Family Residential"
+		AND transactiondate <= '2017-12-31'
+		AND prop.longitude IS NOT NULL
+		AND prop.latitude IS NOT NULL
+        '''
         url = env.create_url('zillow')
         df = pd.read_sql(query, url)
         df.to_csv('zillow_data.csv', index=False)
     df = df.drop(columns=[ 
+                    'id',
+                    'parcelid',
                     'airconditioningtypeid',
                     'architecturalstyletypeid', 
                     'buildingclasstypeid',
@@ -45,19 +65,10 @@ def acquire_zillow():
                     'pooltypeid7', 
                     'propertylandusetypeid',
                     'storytypeid',
-                    'typeconstructiontypeid', 
-                    'id.1',
-                    'parcelid.1',
-                    'architecturalstyletypeid.1',
-                    'buildingclasstypeid.1',
-                    'heatingorsystemtypeid.1', 
-                    'storytypeid.1',
-                    'propertylandusetypeid.1', 
-                    'typeconstructiontypeid.1',
-                    'airconditioningtypeid.1',
-                    'parcelid.2',
-                    'heatingorsystemtypeid'])
+                    'typeconstructiontypeid'
+])
     return df
+
 
 
 def missing_by_col(df): 
