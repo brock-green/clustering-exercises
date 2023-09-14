@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import numpy as np
 import env
-
+from sklearn.model_selection import train_test_split
 
 def acquire_zillow():
     '''
@@ -205,3 +205,25 @@ def handle_missing_values(df, prop_required_column, prop_required_row):
             df = df.drop(index=row)
 
     return df
+
+
+def split_data(df, target=None) -> tuple:
+    '''
+    split_data will split data into train, validate, and test sets
+    
+    if a discrete target is in the data set, it may be specified
+    with the target kwarg (Default None)
+    
+    return: three pandas DataFrames
+    '''
+    train_val, test = train_test_split(
+        df, 
+        train_size=0.8, 
+        random_state=666,
+        stratify=target)
+    train, validate = train_test_split(
+        train_val,
+        train_size=0.7,
+        random_state=666,
+        stratify=target)
+    return train, validate, test
